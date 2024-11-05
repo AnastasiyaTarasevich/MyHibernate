@@ -1,11 +1,12 @@
 import entities.HibernateLike;
 import entities.SimpleEntity;
 
+import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
 
 public class Main
 {
-    public static void main(String[] args) throws IllegalAccessException, SQLException {
+    public static void main(String[] args) throws IllegalAccessException, SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException {
 //        QueryBuilder queryBuilder=new QueryBuilder();
 //        System.out.println(queryBuilder.buildCreateTableQuery(SimpleEntity.class));
 //        System.out.println(queryBuilder.buildSelectQuery(SimpleEntity.class));
@@ -18,7 +19,8 @@ public class Main
 
         HibernateLike hibernateLike=new HibernateLike("entities");
         hibernateLike.initDb();
-        hibernateLike.persist(simpleEntity);
-
+//        hibernateLike.persist(simpleEntity);
+        SimpleEntity simpleEntity1=hibernateLike.getById(SimpleEntity.class,1);
+        System.out.println(simpleEntity1);
     }
 }

@@ -1,15 +1,23 @@
 package entities;
 
+import annotations.IdColumn;
+import annotations.JoinMany;
 import annotations.OurEntity;
+import annotations.UpdateColumnName;
 import services.QueryBuilder;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Serializable;
 import java.lang.annotation.Annotation;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Proxy;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -58,96 +66,38 @@ public class HibernateLike {
                 .execute(insertQuery);
     }
 
-//    public <T> T getById(Class<T> clazz, Serializable id) throws SQLException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
-//        String query = queryBuilder.buildSelectById(clazz);
-//
-//        PreparedStatement preparedStatement = connection.prepareStatement(query);
-//        preparedStatement.setObject(1, id);
-//
-//        ResultSet resultSet = preparedStatement.executeQuery();
-//        List<T> fetchData = fetchData(clazz, resultSet);
-//
-//        if (fetchData.isEmpty()) {
-//            throw new IllegalArgumentException("No record found!");
-//        }
-//
-//        if (fetchData.size() > 1) {
-//            throw new IllegalArgumentException("More than 1 record is found!");
-//        }
-//
-//        return fetchData.iterator().next();
-//    }
-//
-//    public <T> List<T> getAll(Class<T> clazz) throws SQLException, InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchMethodException {
-//        return getAll(clazz, "");
-//    }
-//
-//    public <T> List<T> getAll(Class<T> clazz, String whereClause) throws SQLException, InvocationTargetException, InstantiationException, IllegalAccessException, NoSuchMethodException {
-//        String query = queryBuilder.buildSelectQuery(clazz);
-//        query += " " + whereClause;
-//
-//        Statement statement = connection.createStatement();
-//
-//        ResultSet resultSet = statement.executeQuery(query);
-//
-//        return fetchData(clazz, resultSet);
-//    }
-//
-//    private <T> List<T> fetchData(Class<T> clazz, ResultSet resultSet) throws SQLException, InstantiationException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
-//        List<T> result = new ArrayList<>();
-//
-//        while (resultSet.next()) {
-//            Object newInstance = clazz.getDeclaredConstructor().newInstance();
-//
-//            Field[] fields = clazz.getDeclaredFields();
-//
-//            Object currentObjectIdValue = null;
-//            for (Field field : fields) {
-//                if (field.isAnnotationPresent(IdColumn.class)) {
-//                    currentObjectIdValue = resultSet.getObject(field.getName());
-//                }
-//            }
-//
-//            for (Field field : fields) {
-//                String fieldName = field.getName();
-//
-//                if (field.isAnnotationPresent(JoinMany.class)) {
-//                    String joinColumnName = field.getAnnotation(JoinMany.class).joinColumn();
-//
-//                    ParameterizedType listType = (ParameterizedType) field.getGenericType();
-//                    Class<?> genericType = (Class<?>) listType.getActualTypeArguments()[0];
-//
-//                    List list = (List) Proxy.newProxyInstance(
-//                            HibernateLike.class.getClassLoader(),
-//                            new Class[]{List.class},
-//                            new SelectProxyHandler(this, genericType, joinColumnName, currentObjectIdValue)
-//                    );
-//
-//                    boolean isPrivate = field.trySetAccessible();
-//                    field.setAccessible(true);
-//                    field.set(newInstance, list);
-//                    field.setAccessible(isPrivate);
-//
-//                } else {
-//
-//                    OurColumnName declaredFieldAnnotation = field.getAnnotation(OurColumnName.class);
-//                    if (declaredFieldAnnotation != null) {
-//                        fieldName = declaredFieldAnnotation.name();
-//                    }
-//
-//                    Object object = resultSet.getObject(fieldName);
-//                    boolean isPrivate = field.trySetAccessible();
-//                    field.setAccessible(true);
-//                    field.set(newInstance, object);
-//                    field.setAccessible(isPrivate);
-//                }
-//            }
-//
-//            result.add((T) newInstance);
-//        }
-//
-//        return result;
-//    }
+    public <T> T getById(Class<T> clazz, Serializable id) throws SQLException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
+        String query = queryBuilder.buildSelectByIdQuery(clazz);
+
+        PreparedStatement preparedStatement = connection.prepareStatement(query);
+        preparedStatement.setObject(1, id);
+
+        ResultSet resultSet = preparedStatement.executeQuery();
+        boolean hasNext = resultSet.next();
+        if (!hasNext) {
+            throw new IllegalArgumentException("No record found");
+        }
+
+        Object newInstance = clazz.getDeclaredConstructor().newInstance();
+
+        Field[] fields = clazz.getDeclaredFields();
+        for (Field field : fields) {
+            String fieldName = field.getName();
+
+            UpdateColumnName declaredFieldAnnotation = field.getAnnotation(UpdateColumnName.class);
+            if (declaredFieldAnnotation != null) {
+                fieldName = declaredFieldAnnotation.name();
+            }
+
+            Object object = resultSet.getObject(fieldName);
+            boolean isPrivate = field.trySetAccessible();
+            field.setAccessible(true);
+            field.set(newInstance, object);
+            field.setAccessible(isPrivate);
+        }
+
+        return (T) newInstance;
+    }
 
     private Set<Class> findAllClasses(String packageName) {
         InputStream stream = ClassLoader.getSystemClassLoader()
