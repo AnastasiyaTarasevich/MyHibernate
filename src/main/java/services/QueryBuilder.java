@@ -117,4 +117,52 @@ public class QueryBuilder {
 
         return buildSelectQuery(clazz)+condition;
     }
+
+    public String buildInsertQuery(Object obj) throws IllegalAccessException {
+        //TODO rewrite to prepared statement
+       Class <?> clazz=obj.getClass();
+        OurEntity clazzEntityAnnotation=clazz.getAnnotation(OurEntity.class);
+        if(clazzEntityAnnotation ==null)
+        {
+            throw new IllegalArgumentException("Class is not entity");
+        }
+        String tableName= clazzEntityAnnotation.tableName();
+        StringBuilder query=new StringBuilder();
+        query.append("INSERT INTO "+tableName+" (");
+        for (int i = 0; i < clazz.getDeclaredFields().length; i++) {
+            Field declaredField=clazz.getDeclaredFields()[i];
+            String fieldName= declaredField.getName();
+            UpdateColumnName declaredFieldAnnotation=declaredField.getAnnotation(UpdateColumnName.class);
+            if(declaredFieldAnnotation!=null)
+            {
+                query.append(declaredFieldAnnotation.name());
+            }else {
+                query.append(declaredField.getName());
+            }
+            if(i!=clazz.getDeclaredFields().length-1)
+            {
+                query.append(",");
+            }
+        }
+        query.append(") VALUES (");
+        for (int i = 0; i < clazz.getDeclaredFields().length; i++) {
+            Field declaredField=clazz.getDeclaredFields()[i];
+            boolean isPrivate=declaredField.trySetAccessible();
+            declaredField.setAccessible(true);
+            Object value=declaredField.get(obj);
+            declaredField.setAccessible(isPrivate);
+            if(declaredField.getType().equals(Integer.class))
+            {
+                query.append(value);
+            } else if (declaredField.getType().equals(String.class)) {
+                query.append("'").append(value).append("'");
+            }
+            if(i!=clazz.getDeclaredFields().length-1)
+            {
+                query.append(",");
+            }
+        }
+        query.append(")");
+        return query.toString();
+    }
 }
