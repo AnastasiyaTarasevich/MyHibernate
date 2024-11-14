@@ -1,10 +1,9 @@
 package entities;
 
-import annotations.IdColumn;
-import annotations.JoinMany;
-import annotations.OurEntity;
-import annotations.UpdateColumnName;
+import annotations.table.OurEntity;
+import annotations.field.UpdateColumnName;
 import services.QueryBuilder;
+import services.RelationBuilder;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -13,25 +12,24 @@ import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Proxy;
 import java.sql.*;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 public class HibernateLike {
-    private String packageWithEntitites;
+    private String packageWithEntities;
 
     private final QueryBuilder queryBuilder;
     private final Connection connection;
+    private final RelationBuilder relationBuilder;
 
-    public HibernateLike(String packageWithEntitites) throws SQLException {
-        this.packageWithEntitites = packageWithEntitites;
+    public HibernateLike(String packageWithEntities) throws SQLException {
+        this.packageWithEntities = packageWithEntities;
 
         this.queryBuilder = new QueryBuilder();
+        this.relationBuilder=new RelationBuilder();
 
         Properties connectionProps = new Properties();
         connectionProps.put("user","root");
@@ -45,7 +43,7 @@ public class HibernateLike {
     }
 
     public void initDb() throws SQLException {
-        Set<Class> allClasses = findAllClasses(this.packageWithEntitites);
+        Set<Class> allClasses = findAllClasses(this.packageWithEntities);
         for (Class aClass : allClasses) {
             Annotation annotation = aClass.getAnnotation(OurEntity.class);
             if (annotation == null) {
@@ -56,8 +54,32 @@ public class HibernateLike {
             connection
                     .createStatement()
                     .execute(createQuery);
+
+
+
         }
+        for (Class aClass : allClasses) {
+            Annotation annotation = aClass.getAnnotation(OurEntity.class);
+            if (annotation == null) {
+                continue;
+            }
+
+            RelationBuilder foreignKeyBuilder = new RelationBuilder();
+            List<String> foreignKeys = foreignKeyBuilder.buildManyToOneRelation(aClass);
+
+            if (!foreignKeys.isEmpty()) {
+                // Выполняем все запросы для добавления внешних ключей
+                for (String query : foreignKeys) {
+                    connection.createStatement().execute(query);
+                }
+            }
+        }
+
+
+
     }
+
+
 
     public void persist(Object object) throws IllegalAccessException, SQLException {
         String insertQuery = queryBuilder.buildInsertQuery(object);

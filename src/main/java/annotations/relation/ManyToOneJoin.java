@@ -1,4 +1,5 @@
-package annotations;
+package annotations.relation;
+
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,6 +8,6 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface UpdateColumnName {
-    String name();
+public @interface ManyToOneJoin {
+    String table();
 }

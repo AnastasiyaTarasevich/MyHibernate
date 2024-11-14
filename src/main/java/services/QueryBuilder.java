@@ -1,6 +1,12 @@
 package services;
 
-import annotations.*;
+import annotations.field.IdColumn;
+import annotations.field.NotNullValue;
+import annotations.field.UniqueValue;
+import annotations.field.UpdateColumnName;
+import annotations.relation.JoinColumn;
+import annotations.relation.ManyToOneJoin;
+import annotations.table.OurEntity;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -40,59 +46,75 @@ public class QueryBuilder {
 
         return query.toString();
     }
-    public String buildCreateTableQuery(Class<?> clazz)
-    {
-        OurEntity clazzEntityAnnotation=clazz.getAnnotation(OurEntity.class);
-        if(clazzEntityAnnotation ==null)
-        {
+    public String buildCreateTableQuery(Class<?> clazz) {
+        OurEntity clazzEntityAnnotation = clazz.getAnnotation(OurEntity.class);
+        if (clazzEntityAnnotation == null) {
             throw new IllegalArgumentException("Class is not entity");
         }
-        String tableName= clazzEntityAnnotation.tableName();
-        StringBuilder query=new StringBuilder();
-        query.append("CREATE TABLE IF NOT EXISTS "+tableName+" (");
-        for (int i = 0; i < clazz.getDeclaredFields().length; i++) {
-            Field declaredField=clazz.getDeclaredFields()[i];
-            String fieldName= declaredField.getName();
-            UpdateColumnName declaredFieldAnnotation=declaredField.getAnnotation(UpdateColumnName.class);
-            if(declaredFieldAnnotation!=null)
-            {
-                fieldName= declaredFieldAnnotation.name();
-            }
-            String type=null;
 
-            if(String.class.equals(declaredField.getType()))
-            {
-                type="TEXT";
+        String tableName = clazzEntityAnnotation.tableName();
+        StringBuilder query = new StringBuilder();
+        query.append("CREATE TABLE IF NOT EXISTS ").append(tableName).append(" (");
+
+        boolean firstField = true; // Флаг, который отслеживает, нужно ли ставить запятую
+
+        for (int i = 0; i < clazz.getDeclaredFields().length; i++) {
+            Field declaredField = clazz.getDeclaredFields()[i];
+
+            // Пропускаем поля, помеченные @ManyToOneJoin или @JoinColumn
+            if (declaredField.isAnnotationPresent(ManyToOneJoin.class) || declaredField.isAnnotationPresent(JoinColumn.class)) {
+                continue; // Эти поля не добавляются как столбцы
+            }
+
+            // Если это не первое поле, ставим запятую
+            if (!firstField) {
+                query.append(", ");
+            }
+            firstField = false;  // После первого поля запятая будет ставиться
+
+            String fieldName = declaredField.getName();
+            UpdateColumnName declaredFieldAnnotation = declaredField.getAnnotation(UpdateColumnName.class);
+            if (declaredFieldAnnotation != null) {
+                fieldName = declaredFieldAnnotation.name();
+            }
+
+            String type = null;
+            if (String.class.equals(declaredField.getType())) {
+                type = "TEXT";
             } else if (Integer.class.equals(declaredField.getType())) {
-                type="INT";
+                type = "INT";
             }
-            String notNullValue="";
-            if(declaredField.isAnnotationPresent(NotNullValue.class))
+
+            String notNullValue = "";
+            if (declaredField.isAnnotationPresent(NotNullValue.class)) {
+                notNullValue = "NOT NULL";
+            }
+
+            String uniqueModifier = "";
+            if (declaredField.isAnnotationPresent(UniqueValue.class)) {
+                uniqueModifier = "UNIQUE";
+            }
+
+            String primaryKey="";
+            if(declaredField.isAnnotationPresent(IdColumn.class))
             {
-                notNullValue="NOT NULL";
+                primaryKey="PRIMARY KEY";
             }
-            String uniqueModifier="";
-            if(declaredField.isAnnotationPresent(UniqueValue.class))
-            {
-                uniqueModifier="UNIQUE";
-            }
+
             query.append(fieldName).append(" ")
                     .append(type).append(" ")
                     .append(uniqueModifier).append(" ")
-                    .append(notNullValue).append(" ");
-            if(i!=clazz.getDeclaredFields().length-1)
-            {
-                query.append(",");
-            }
-
-
+                    .append(notNullValue).append(" ")
+                    .append(primaryKey);
 
         }
-        query.append(")");
+
+        query.append(");");
         return query.toString();
     }
 
-   public String buildSelectByIdQuery(Class<?> clazz)
+
+    public String buildSelectByIdQuery(Class<?> clazz)
     {
         String idColumn=null;
         for (Field declaredField : clazz.getDeclaredFields()) {

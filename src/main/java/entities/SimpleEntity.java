@@ -1,7 +1,19 @@
 package entities;
 
-import annotations.*;
+import annotations.field.IdColumn;
+import annotations.field.NotNullValue;
+import annotations.field.UniqueValue;
+import annotations.field.UpdateColumnName;
+import annotations.relation.JoinColumn;
+import annotations.relation.ManyToOneJoin;
+import annotations.table.OurEntity;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 
+@Getter
+@Setter
+@ToString
 @OurEntity(tableName = "simple_table")
 public class SimpleEntity {
 
@@ -16,36 +28,10 @@ public class SimpleEntity {
 
     private String myOtherField;
 
-    public Integer getId() {
-        return id;
-    }
 
-    public void setId(Integer id) {
-        this.id = id;
-    }
+    @ManyToOneJoin(table = "other_entity")
+    @JoinColumn(name = "other_entity_id",referencedColumnName = "id")
+    private OtherEntity otherEntity;
 
-    public String getMyField() {
-        return myField;
-    }
 
-    public void setMyField(String myField) {
-        this.myField = myField;
-    }
-
-    public String getMyOtherField() {
-        return myOtherField;
-    }
-
-    public void setMyOtherField(String myOtherField) {
-        this.myOtherField = myOtherField;
-    }
-
-    @Override
-    public String toString() {
-        return "SimpleEntity{" +
-                "id=" + id +
-                ", myField='" + myField + '\'' +
-                ", myOtherField='" + myOtherField + '\'' +
-                '}';
-    }
 }

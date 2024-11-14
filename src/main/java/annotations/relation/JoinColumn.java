@@ -1,4 +1,4 @@
-package annotations;
+package annotations.relation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,5 +7,7 @@ import java.lang.annotation.Target;
 
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface IdColumn {
+public @interface JoinColumn {
+    String referencedColumnName();
+    String name();
 }
