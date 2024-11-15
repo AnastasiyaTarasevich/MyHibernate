@@ -5,11 +5,14 @@ import annotations.field.NotNullValue;
 import annotations.field.UniqueValue;
 import annotations.field.UpdateColumnName;
 import annotations.relation.JoinColumn;
+import annotations.relation.JoinMany;
 import annotations.relation.ManyToOneJoin;
 import annotations.table.OurEntity;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+
+import java.util.List;
 
 @Getter
 @Setter
@@ -33,5 +36,8 @@ public class SimpleEntity {
     @JoinColumn(name = "other_entity_id",referencedColumnName = "id")
     private OtherEntity otherEntity;
 
+
+    @JoinMany(joinTable = "simple_second", joinColumn = "simple_id", inverseJoinColumn = "second_id")
+    private List<SecondSimpleEntity> entities;
 
 }

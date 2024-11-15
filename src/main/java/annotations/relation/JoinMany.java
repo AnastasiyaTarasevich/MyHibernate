@@ -8,5 +8,7 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface JoinMany {
-    String cascade();
+    String joinTable();
+    String joinColumn();
+    String inverseJoinColumn();
 }

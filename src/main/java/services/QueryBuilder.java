@@ -5,6 +5,7 @@ import annotations.field.NotNullValue;
 import annotations.field.UniqueValue;
 import annotations.field.UpdateColumnName;
 import annotations.relation.JoinColumn;
+import annotations.relation.JoinMany;
 import annotations.relation.ManyToOneJoin;
 import annotations.table.OurEntity;
 
@@ -56,13 +57,14 @@ public class QueryBuilder {
         StringBuilder query = new StringBuilder();
         query.append("CREATE TABLE IF NOT EXISTS ").append(tableName).append(" (");
 
-        boolean firstField = true; // Флаг, который отслеживает, нужно ли ставить запятую
+        boolean firstField = true;
 
         for (int i = 0; i < clazz.getDeclaredFields().length; i++) {
             Field declaredField = clazz.getDeclaredFields()[i];
 
-            // Пропускаем поля, помеченные @ManyToOneJoin или @JoinColumn
-            if (declaredField.isAnnotationPresent(ManyToOneJoin.class) || declaredField.isAnnotationPresent(JoinColumn.class)) {
+
+            if (declaredField.isAnnotationPresent(ManyToOneJoin.class) || declaredField.isAnnotationPresent(JoinColumn.class)
+                    || declaredField.isAnnotationPresent(JoinMany.class)) {
                 continue; // Эти поля не добавляются как столбцы
             }
 
@@ -70,7 +72,7 @@ public class QueryBuilder {
             if (!firstField) {
                 query.append(", ");
             }
-            firstField = false;  // После первого поля запятая будет ставиться
+            firstField = false;
 
             String fieldName = declaredField.getName();
             UpdateColumnName declaredFieldAnnotation = declaredField.getAnnotation(UpdateColumnName.class);

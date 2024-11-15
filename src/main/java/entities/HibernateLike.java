@@ -55,26 +55,29 @@ public class HibernateLike {
                     .createStatement()
                     .execute(createQuery);
 
-
-
         }
+
         for (Class aClass : allClasses) {
             Annotation annotation = aClass.getAnnotation(OurEntity.class);
             if (annotation == null) {
                 continue;
             }
 
-            RelationBuilder foreignKeyBuilder = new RelationBuilder();
-            List<String> foreignKeys = foreignKeyBuilder.buildManyToOneRelation(aClass);
+            RelationBuilder relationBuilder = new RelationBuilder();
+            List<String> foreignKeys = relationBuilder.buildManyToOneRelation(aClass);
 
             if (!foreignKeys.isEmpty()) {
-                // Выполняем все запросы для добавления внешних ключей
                 for (String query : foreignKeys) {
                     connection.createStatement().execute(query);
                 }
             }
-        }
 
+        }
+        List<String> manyToManyQueries = relationBuilder.buildManyToManyRelation( allClasses);
+
+        for (String query : manyToManyQueries) {
+            connection.createStatement().execute(query);
+        }
 
 
     }
