@@ -1,8 +1,14 @@
 package entities;
 
+import annotations.relation.JoinMany;
+import annotations.relation.ManyToOneJoin;
 import annotations.table.OurEntity;
 import annotations.field.UpdateColumnName;
+import constants.Cascade;
+import lombok.NoArgsConstructor;
+import services.PreparedStatementBuilder;
 import services.QueryBuilder;
+import services.QueryWithParameters;
 import services.RelationBuilder;
 
 import java.io.BufferedReader;
@@ -18,14 +24,28 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+
 public class HibernateLike {
     private String packageWithEntities;
 
     private final QueryBuilder queryBuilder;
     private final Connection connection;
     private final RelationBuilder relationBuilder;
+    private static HibernateLike INSTANCE;
 
-    public HibernateLike(String packageWithEntities) throws SQLException {
+    // Статический метод для получения единственного экземпляра
+    public static HibernateLike getInstance(String packageWithEntities) throws SQLException {
+        if (INSTANCE == null) {
+            synchronized (HibernateLike.class) {
+                if (INSTANCE == null) {
+                    INSTANCE = new HibernateLike(packageWithEntities);
+                }
+            }
+        }
+        return INSTANCE;
+    }
+
+    private HibernateLike(String packageWithEntities) throws SQLException {
         this.packageWithEntities = packageWithEntities;
 
         this.queryBuilder = new QueryBuilder();
@@ -85,11 +105,79 @@ public class HibernateLike {
 
 
     public void persist(Object object) throws IllegalAccessException, SQLException {
-        String insertQuery = queryBuilder.buildInsertQuery(object);
-        connection
-                .createStatement()
-                .execute(insertQuery);
+        handleCascadeOperations(object, Cascade.INSERT);
+        QueryWithParameters queryWithParameters = queryBuilder.buildInsertQuery(object);
+        PreparedStatement insertQuery = PreparedStatementBuilder.createPreparedStatement(connection,queryWithParameters);
+        insertQuery.executeUpdate();
+
     }
+
+
+    private void handleCascadeOperations(Object object, Cascade cascadeType) throws IllegalAccessException, SQLException {
+        // Получаем все поля объекта
+        Field[] fields = object.getClass().getDeclaredFields();
+
+        // Проходим по каждому полю
+        for (Field field : fields) {
+            field.setAccessible(true);
+
+            Object relatedObject = field.get(object);
+            if (relatedObject != null) {
+
+
+                Cascade[] cascades = getCascadesForField(field);
+
+                if (cascades != null) {
+                    for (Cascade cascade : cascades) {
+
+
+                        switch (cascade) {
+                            case INSERT:
+                                if (cascadeType == Cascade.INSERT) {
+                                    persist(relatedObject);
+                                }
+                                break;
+                            case UPDATE:
+                                if (cascadeType == Cascade.UPDATE) {
+                                    // merge(relatedObject); // Здесь нужно будет вызвать метод обновления
+                                }
+                                break;
+                            case DELETE:
+                                if (cascadeType == Cascade.DELETE) {
+                                    // delete(relatedObject); // Здесь нужно будет вызвать метод удаления
+                                }
+                                break;
+                            case ALL:
+                                persist(relatedObject); // В случае ALL выполняем все операции
+                                // merge(relatedObject); // Вы можете также добавить обновление и удаление в случае ALL
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Метод для получения каскадных операций для поля
+    private Cascade[] getCascadesForField(Field field) {
+        // Проверяем, есть ли аннотация каскадирования для данного поля
+
+        if (field.isAnnotationPresent(ManyToOneJoin.class)) {
+            return field.getAnnotation(ManyToOneJoin.class).cascade();
+        }
+
+        if (field.isAnnotationPresent(JoinMany.class)) {
+            return field.getAnnotation(JoinMany.class).cascade();
+        }
+        return null; // Если аннотации каскадирования нет, возвращаем null
+    }
+
+//    public void merge(Object object) throws SQLException {
+//        String updateQuery=queryBuilder.buildUpdateQuery(object);
+//        connection.createStatement().execute(updateQuery);
+//    }
 
     public <T> T getById(Class<T> clazz, Serializable id) throws SQLException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
         String query = queryBuilder.buildSelectByIdQuery(clazz);
@@ -123,6 +211,9 @@ public class HibernateLike {
 
         return (T) newInstance;
     }
+
+
+
 
     private Set<Class> findAllClasses(String packageName) {
         InputStream stream = ClassLoader.getSystemClassLoader()

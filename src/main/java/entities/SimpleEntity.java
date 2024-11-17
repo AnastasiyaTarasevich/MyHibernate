@@ -37,7 +37,7 @@ public class SimpleEntity {
     private OtherEntity otherEntity;
 
 
-    @JoinMany(joinTable = "simple_second", joinColumn = "simple_id", inverseJoinColumn = "second_id")
-    private List<SecondSimpleEntity> entities;
+//    @JoinMany(joinTable = "simple_second", joinColumn = "simple_id", inverseJoinColumn = "second_id")
+//    private List<SecondSimpleEntity> entities;
 
 }
